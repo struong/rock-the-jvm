@@ -1,4 +1,4 @@
-package typeclasses
+package typelevel
 
 // https://www.youtube.com/watch?v=qwUYqv6lKtQ
 object TypeLevelProgramming {
