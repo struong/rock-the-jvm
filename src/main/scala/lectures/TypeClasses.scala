@@ -28,13 +28,13 @@ object TypeClasses extends App {
     summable.sumElements(list)
   }
 
-  override def main(args: Array[String]): Unit = {
-    val intSum = processMyList(List(1, 2, 3))
-    val stringSum = processMyList(List("Scala", " is", " awesome"))
 
-    println(s"intSum = ${intSum}")
-    println(s"stringSum = ${stringSum}")
+  val intSum = processMyList(List(1, 2, 3))
+  val stringSum = processMyList(List("Scala", " is", " awesome"))
 
-    // processMyList(List(true, true, false)) // Errors at compile time
-  }
+  println(s"intSum = ${intSum}")
+  println(s"stringSum = ${stringSum}")
+
+  // processMyList(List(true, true, false)) // Errors at compile time
+
 }

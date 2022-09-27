@@ -108,7 +108,7 @@ object ValueClasses extends App {
 
   import io.estatico.newtype.ops._
 
-  @newtype final case class BarcodeNT(code: String) // VC without issues 1-3, no runtime overhead
+  @newtype case class BarcodeNT(code: String) // VC without issues 1-3, no runtime overhead
 
   object BarcodeNT {
     def mkBarCode(code: String): Either[String, BarcodeNT] = {
