@@ -1,7 +1,12 @@
 package fs2
 
+import cats.effect.std.Queue
 import cats.effect.{IO, IOApp}
 import fs2.Stream
+
+import scala.concurrent.duration.DurationInt
+import scala.util.Random
+
 
 // https://blog.rockthejvm.com/fs2/
 object FS2Demo extends IOApp.Simple {
@@ -102,6 +107,102 @@ object FS2Demo extends IOApp.Simple {
   // flatMap + eval while keeping the original type = evalTap
   val printedJLActors_v3: Stream[IO, Actor] = jlActors.evalTap(IO.println)
 
-  override def run: IO[Unit] = compileStream
+  // pipe is just function that transforms a stream
+  // pipe = Stream[F, I] => Stream[F, O]
+  val actorToStringPipe: Pipe[IO, Actor, String] = inStream => inStream.map(actor => s"${actor.firstName} ${actor.lastName}")
+
+  def toConsole[A]: Pipe[IO, A, Unit] = inStream => inStream.evalMap(IO.println)
+
+  // connect streams together with pipes and through, through takes a pipe
+  // same as via from Akka streams
+  val stringNamesPrinted: Stream[IO, Unit] = jlActors.through(actorToStringPipe).through(toConsole)
+
+
+  // error handling
+  def saveToDatabase(actor: Actor): IO[Int] = IO {
+    println(s"Saving ${actor.firstName} ${actor.lastName}")
+    // fails 50% of the time
+    if (Random.nextBoolean()) {
+      throw new RuntimeException("Persistence layer failed")
+    } else {
+      println("Saved.")
+      actor.id
+    }
+  }
+
+  val savedJLActors: Stream[IO, Int] = jlActors.evalMap(saveToDatabase)
+
+  // handleErrorWith, takes a function from a throwable to something else
+  // we can return a stream of different type, it will be the lowest selected ancestor
+  val errorHandledActors: Stream[IO, Int] = savedJLActors.handleErrorWith(error => Stream.eval(IO {
+    println(s"Error occured: $error")
+    -1
+  }))
+
+  // attempt, turn a stream to Either
+  val attemptedSavedJLActors: Stream[IO, Either[Throwable, Int]] = savedJLActors.attempt
+  val attemptedProcessed = attemptedSavedJLActors.evalMap {
+    case Left(error) => IO(s"Error: $error").debug
+    case Right(value) => IO(s"Successfully processed actor ID: $value").debug
+  }
+
+  // resource management
+  case class DatabaseConnection(url: String)
+
+  def acquireConnection(url: String): IO[DatabaseConnection] = IO {
+    println("Getting DB connection...")
+    DatabaseConnection(url)
+  }
+
+  def release(connection: DatabaseConnection): IO[Unit] = IO {
+    println(s"Release connection to ${connection.url}")
+  }
+
+  // bracket pattern
+  val managedJLActors: Stream[IO, Int] =
+    Stream.bracket(acquireConnection("jdbc://mydatabase.com"))(release).flatMap { conn =>
+      // process a stream using this resource
+      savedJLActors.evalTap(actorId => IO(s"Saving actor $actorId to ${conn.url}").debug)
+    }
+
+  // merge and concurrent stream execution
+
+  // assume that these come from different parts of the application, we can merge them concurrently
+  val concurrentJlActors = jlActors.evalMap { actor =>
+    IO {
+      Thread.sleep(400)
+      actor
+    }.debug
+  }
+
+  val concurrentAvengersActors = avengerActors.evalMap { actor =>
+    IO {
+      Thread.sleep(200)
+      actor
+    }.debug
+  }
+
+  val mergedActors: Stream[IO, Actor] = concurrentJlActors.merge(concurrentAvengersActors)
+
+  // concurrently, runs two streams at the same time
+  // useful if two streams with two different effects, have something in the backend that uses two different resources
+  // example: producer-consumer
+  val queue: IO[Queue[IO, Actor]] = Queue.bounded(10) // buffer of at most 10 elements big
+  val concurrentSystem = Stream.eval(queue).flatMap { q =>
+    // producer stream
+    val producer: Stream[IO, Unit] = jlActors
+      .evalTap(actor => IO(actor).debug)
+      .evalMap(actor => q.offer(actor)) // enqueue
+      .metered(1.second) // throttle at 1 effect per second
+
+    // consumer stream
+    val consumer: Stream[IO, Unit] = Stream.fromQueueUnterminated(q)
+      .evalMap(actor => IO(s"Consumed actor $actor").debug.void)
+
+    producer.concurrently(consumer)
+  }
+
+  override def run: IO[Unit] = concurrentSystem.compile.drain
+  //    compileStream
   // IO(repeatedJLActorsList).debug.void
 }
