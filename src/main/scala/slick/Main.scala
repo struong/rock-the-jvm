@@ -1,5 +1,6 @@
 package slick
 
+import play.api.libs.json.Json
 import slick.StreamingService.{Disney, Netflix}
 import slick.jdbc.GetResult
 
@@ -26,6 +27,22 @@ object Main {
     StreamingProviderMapping(1L, 2L, Netflix),
     StreamingProviderMapping(2L, 10L, Disney)
   )
+
+  val starWarsLocations = MovieLocations(1L, 10L, List("England, Tunisia, Italy"))
+
+  val starWarsProperties = MovieProperties(1L , 10L, Map(
+    "Genre" -> "Sci-Fi",
+    "Features" -> "Lightsabers"
+  ))
+
+  val liamNeesonDetails = ActorDetails(1L, 3L, Json.parse(
+    """
+      |{
+      |  "born": 1952,
+      |  "awesome": "yes"
+      |}
+      |""".stripMargin
+  ))
 
   def demoInsertMovie(): Unit = {
     // movieTable has the query to insert shawshankRedemption
@@ -141,12 +158,28 @@ object Main {
     Connection.db.run(queryDescriptor.result)
   }
 
-  def main(args: Array[String]): Unit = {
-    findProvidersForMovies(2L).onComplete {
-      case Success(providers) => println(s"Query was successful, providers ${providers.map(_.streamingProvider)}")
-      case Failure(exception) => println(s"Query failed, reason, $exception")
-    }
+  def insertLocationsForStarWars(): Unit = {
+    val query = SpecialTables.movieLocationsTable += starWarsLocations
+    Connection.db.run(query)
+  }
 
+  def insertPropertiesDemo(): Unit = {
+    val query = SpecialTables.moviePropertiesTable += starWarsProperties
+    Connection.db.run(query)
+  }
+
+  def insertActorDetailsDemo(): Unit = {
+    val query = SpecialTables.actorDetailsTable += liamNeesonDetails
+    Connection.db.run(query)
+  }
+
+  def main(args: Array[String]): Unit = {
+//    findProvidersForMovies(2L).onComplete {
+//      case Success(providers) => println(s"Query was successful, providers ${providers.map(_.streamingProvider)}")
+//      case Failure(exception) => println(s"Query failed, reason, $exception")
+//    }
+
+    insertActorDetailsDemo()
     Thread.sleep(5000)
     PrivateExecutionContext.executor.shutdown()
   }

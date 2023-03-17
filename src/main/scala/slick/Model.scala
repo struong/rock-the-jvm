@@ -1,5 +1,7 @@
 package slick
 
+import play.api.libs.json.JsValue
+
 import java.time.LocalDate
 
 final case class Movie(id: Long, name: String, releaseDate: LocalDate, lengthInMinutes: Int)
@@ -9,6 +11,12 @@ final case class Actor(id: Long, name: String)
 final case class MovieActorMapping(id: Long, movieId: Long, actorId: Long)
 
 final case class StreamingProviderMapping(id: Long, movieId: Long, streamingProvider: StreamingService.Provider)
+
+final case class MovieLocations(id: Long, movieId: Long, locations: List[String])
+
+final case class MovieProperties(id: Long, movieId: Long, properties: Map[String, String])
+
+final case class ActorDetails(id: Long, actorId: Long, personalDetails: JsValue)
 
 object StreamingService extends Enumeration {
   type Provider = Value
@@ -79,6 +87,51 @@ object SlickTables {
   val tables = List(movieTable, actorTable, movieActorMappingTable, streamingProviderMappingTable)
   // data definition language
   val ddl = tables.map(_.schema).reduce(_ ++ _) // combine all the schemes to one giant schema
+}
+
+object SpecialTables {
+
+  import CustomPostgresProfile.api._
+
+  class MovieLocationsTable(tag: Tag) extends Table[MovieLocations](tag, Some("movies") /* <- schema name */ , "MovieLocations") {
+
+    def id: Rep[Long] = column[Long]("movie_location_id", O.PrimaryKey, O.AutoInc)
+
+    def movieId: Rep[Long] = column[Long]("movie_id")
+
+    def locations: Rep[List[String]] = column[List[String]]("locations")
+
+    override def * = (id, movieId, locations) <> (MovieLocations.tupled, MovieLocations.unapply)
+  }
+
+  lazy val movieLocationsTable = TableQuery[MovieLocationsTable]
+
+
+  class MoviePropertiesTable(tag: Tag) extends Table[MovieProperties](tag, Some("movies") /* <- schema name */ , "MovieProperties") {
+
+    def id: Rep[Long] = column[Long]("movie_location_id", O.PrimaryKey, O.AutoInc)
+
+    def movieId: Rep[Long] = column[Long]("movie_id")
+
+    def properties: Rep[Map[String, String]] = column[Map[String, String]]("properties")
+
+    override def * = (id, movieId, properties) <> (MovieProperties.tupled, MovieProperties.unapply)
+  }
+
+  lazy val moviePropertiesTable = TableQuery[MoviePropertiesTable]
+
+  class ActorDetailsTable(tag: Tag) extends Table[ActorDetails](tag, Some("movies") /* <- schema name */ , "ActorDetails") {
+
+    def id: Rep[Long] = column[Long]("id", O.PrimaryKey, O.AutoInc)
+
+    def actorId: Rep[Long] = column[Long]("actor_id")
+
+    def personalDetails: Rep[JsValue] = column[JsValue]("personal_info")
+
+    override def * = (id, actorId, personalDetails) <> (ActorDetails.tupled, ActorDetails.unapply)
+  }
+
+  lazy val actorDetailsTable = TableQuery[ActorDetailsTable]
 }
 
 object TableDefinitionGenerator {
