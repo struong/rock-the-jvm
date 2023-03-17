@@ -1,6 +1,7 @@
-docker-compose down && docker-compose up
+qdocker-compose down && docker-compose up
 
 docker ps
 docker exec -it rock-the-jvm-db-1 psql -U postgres
 \l - list dbs
 \c test - connect to test db
+\? - help

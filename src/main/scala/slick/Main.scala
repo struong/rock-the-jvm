@@ -1,5 +1,6 @@
 package slick
 
+import slick.StreamingService.{Disney, Netflix}
 import slick.jdbc.GetResult
 
 import java.time.LocalDate
@@ -20,9 +21,15 @@ object Main {
   val juliaRoberts = Actor(2L, "Julia Roberts")
   val liamNeeson = Actor(3L, "Liam Neeson")
 
+  val providers = List(
+    StreamingProviderMapping(0L, 1L, Netflix),
+    StreamingProviderMapping(1L, 2L, Netflix),
+    StreamingProviderMapping(2L, 10L, Disney)
+  )
+
   def demoInsertMovie(): Unit = {
     // movieTable has the query to insert shawshankRedemption
-    val queryDescription = SlickTables.movieTable += theMatrix
+    val queryDescription = SlickTables.movieTable += phantomMenace
     val futureId: Future[Int] = Connection.db.run(queryDescription)
 
     futureId.onComplete {
@@ -122,10 +129,22 @@ object Main {
     Connection.db.run(joinQuery.result)
   }
 
+  def addStreamingProviders(): Unit = {
+    val insertQuery = SlickTables.streamingProviderMappingTable ++= providers
+    Connection.db.run(insertQuery)
+  }
+
+  def findProvidersForMovies(movieId: Long): Future[Seq[StreamingProviderMapping]] = {
+    val queryDescriptor = SlickTables.streamingProviderMappingTable
+      .filter(_.movieId === movieId)
+
+    Connection.db.run(queryDescriptor.result)
+  }
+
   def main(args: Array[String]): Unit = {
-    findAllActorsByMovie(4L).onComplete {
-      case Failure(exception) => println(s"Query failed $exception")
-      case Success(value) => println(s"Actors from Star Wars $value")
+    findProvidersForMovies(2L).onComplete {
+      case Success(providers) => println(s"Query was successful, providers ${providers.map(_.streamingProvider)}")
+      case Failure(exception) => println(s"Query failed, reason, $exception")
     }
 
     Thread.sleep(5000)
