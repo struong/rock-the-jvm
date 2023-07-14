@@ -37,5 +37,13 @@ libraryDependencies ++= Seq(
   "com.github.tminglei" %% "slick-pg_play-json" % "0.21.1"
 )
 
+val DoobieVersion = "1.0.0-RC1"
+
+libraryDependencies ++= Seq(
+  "org.tpolecat" %% "doobie-core"     % DoobieVersion,
+  "org.tpolecat" %% "doobie-postgres" % DoobieVersion,
+  "org.tpolecat" %% "doobie-hikari"   % DoobieVersion
+)
+
 val fs2Version = "3.6.1"
 libraryDependencies += "co.fs2" %% "fs2-core" % fs2Version

@@ -35,13 +35,6 @@ object FS2Demo extends IOApp.Simple {
 
   // streams = abstraction to manage an unbounded amount of data
   // IO = any kind of computation that might perform side effects
-  implicit class IODebugOps[A](io: IO[A]) {
-    def debug: IO[A] = io.map { a =>
-      println(s"[${Thread.currentThread().getName}] $a")
-      a
-    }
-  }
-
   import Data._
 
   // streams
@@ -142,8 +135,8 @@ object FS2Demo extends IOApp.Simple {
   // attempt, turn a stream to Either
   val attemptedSavedJLActors: Stream[IO, Either[Throwable, Int]] = savedJLActors.attempt
   val attemptedProcessed = attemptedSavedJLActors.evalMap {
-    case Left(error) => IO(s"Error: $error").debug
-    case Right(value) => IO(s"Successfully processed actor ID: $value").debug
+    case Left(error) => IO(s"Error: $error").debug()
+    case Right(value) => IO(s"Successfully processed actor ID: $value").debug()
   }
 
   // resource management
@@ -162,7 +155,7 @@ object FS2Demo extends IOApp.Simple {
   val managedJLActors: Stream[IO, Int] =
     Stream.bracket(acquireConnection("jdbc://mydatabase.com"))(release).flatMap { conn =>
       // process a stream using this resource
-      savedJLActors.evalTap(actorId => IO(s"Saving actor $actorId to ${conn.url}").debug)
+      savedJLActors.evalTap(actorId => IO(s"Saving actor $actorId to ${conn.url}").debug())
     }
 
   // merge and concurrent stream execution
@@ -172,14 +165,14 @@ object FS2Demo extends IOApp.Simple {
     IO {
       Thread.sleep(400)
       actor
-    }.debug
+    }.debug()
   }
 
   val concurrentAvengersActors = avengerActors.evalMap { actor =>
     IO {
       Thread.sleep(200)
       actor
-    }.debug
+    }.debug()
   }
 
   val mergedActors: Stream[IO, Actor] = concurrentJlActors.merge(concurrentAvengersActors)
@@ -191,13 +184,13 @@ object FS2Demo extends IOApp.Simple {
   val concurrentSystem = Stream.eval(queue).flatMap { q =>
     // producer stream
     val producer: Stream[IO, Unit] = jlActors
-      .evalTap(actor => IO(actor).debug)
+      .evalTap(actor => IO(actor).debug())
       .evalMap(actor => q.offer(actor)) // enqueue
       .metered(1.second) // throttle at 1 effect per second
 
     // consumer stream
     val consumer: Stream[IO, Unit] = Stream.fromQueueUnterminated(q)
-      .evalMap(actor => IO(s"Consumed actor $actor").debug.void)
+      .evalMap(actor => IO(s"Consumed actor $actor").debug().void)
 
     producer.concurrently(consumer)
   }
